@@ -1,0 +1,131 @@
+https://github.com/IBM/image-classification-using-cnn-and-keras/blob/master/notebooks/Image%20Classification%20of%20Documents.ipynb
+
+import os
+import zipfile
+import numpy as np
+from PIL import Image
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+# Define the path to the ZIP file
+zip_file_path = os.path.join('C:', os.sep, 'Program Files', 'Downloads', 'your_zip_file.zip')
+
+# Define the image dimensions
+img_width, img_height = 224, 224
+
+# Create an empty list to store the image data and labels
+X = []
+y = []
+
+# Open the ZIP file
+with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+    # Loop through the files in the ZIP file
+    for file_name in zip_ref.namelist():
+        # Extract the file to a temporary location
+        temp_file_path = zip_ref.extract(file_name, path='temp')
+        
+        # Check if the extracted file is a directory
+        if os.path.isdir(temp_file_path):
+            # If it's a directory, loop through the files inside
+            for img_file in os.listdir(temp_file_path):
+                img_path = os.path.join(temp_file_path, img_file)
+                img = Image.open(img_path)
+                img = img.resize((img_width, img_height))
+                img_data = np.array(img) / 255.0  # Normalize pixel values
+                X.append(img_data)
+                y.append(os.path.basename(temp_file_path))  # Use the directory name as the label
+        else:
+            # If it's a file, process it as an image
+            img = Image.open(temp_file_path)
+            img = img.resize((img_width, img_height))
+            img_data = np.array(img) / 255.0  # Normalize pixel values
+            X.append(img_data)
+            y.append(os.path.splitext(file_name)[0])  # Use the file name (without extension) as the label
+        
+        # Remove the temporary file or directory
+        if os.path.isdir(temp_file_path):
+            os.rmdir(temp_file_path)
+        else:
+            os.remove(temp_file_path)
+
+# Convert the data to NumPy arrays
+X = np.array(X)
+y = np.array(y)
+
+# Encode the labels
+label_encoder = LabelEncoder()
+y = label_encoder.fit_transform(y)
+
+# Split the data into train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Data augmentation for training set
+train_datagen = ImageDataGenerator(
+    rotation_range=20,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    shear_range=0.2,
+    zoom_range=0.2,
+    horizontal_flip=True
+)
+
+# Preprocess the training data
+train_generator = train_datagen.flow(X_train, y_train, batch_size=32)
+
+# Define the CNN model architecture
+model = Sequential([
+    Conv2D(32, (3, 3), activation='relu', input_shape=(img_width, img_height, 3)),
+    MaxPooling2D((2, 2)),
+    Conv2D(64, (3, 3), activation='relu'),
+    MaxPooling2D((2, 2)),
+    Conv2D(128, (3, 3), activation='relu'),
+    MaxPooling2D((2, 2)),
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dense(len(np.unique(y)), activation='softmax')
+])
+
+# Compile the model
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+# Train the model
+epochs = 10
+model.fit(train_generator, epochs=epochs, validation_data=(X_test, y_test))
+
+# Classify a new image
+new_img_path = 'path/to/your/new/image.jpg'
+new_img = Image.open(new_img_path)
+new_img = new_img.resize((img_width, img_height))
+new_img_data = np.array(new_img) / 255.0
+new_img_data = np.expand_dims(new_img_data, axis=0)
+
+# Make a prediction
+prediction = model.predict(new_img_data)
+predicted_class = label_encoder.inverse_transform([np.argmax(prediction)])[0]
+print(f"The predicted category for the new image is: {predicted_class}")
+
+
+#EXPLANATION 
+Here's a breakdown of what the code does:
+It defines the path to the ZIP file containing the images.
+It sets the desired image dimensions (img_width, img_height) to 224 x 224 pixels.
+It creates empty lists to store the image data and labels.
+It opens the ZIP file and loops through the files inside.
+For each file, it extracts it to a temporary location and checks if it's a directory or a single file.
+If it's a directory, it loops through all the image files inside that directory, opens each image, resizes it, converts it to a NumPy array, normalizes the pixel values, and appends the image data to the X list and the directory name (label) to the y list.
+If it's a single file, it processes it in a similar way: opens the image, resizes it, converts it to a NumPy array, normalizes the pixel values, and appends the image data to the X list and the file name (without extension) as the label to the y list.
+After processing each file, it removes the temporary file or directory.
+It converts the X and y lists to NumPy arrays.
+It encodes the labels (y) using LabelEncoder from scikit-learn, which assigns a unique numerical value to each label.
+It splits the data into training and testing sets using train_test_split from scikit-learn.
+It applies data augmentation to the training set using ImageDataGenerator from Keras.
+It creates a data generator (train_generator) that will apply the data augmentation transformations on-the-fly during training.
+It defines the CNN model architecture using Keras.
+It compiles the model with the Adam optimizer, categorical cross-entropy loss, and accuracy as the evaluation metric.
+It trains the model using model.fit, passing the train_generator (which applies data augmentation on-the-fly) as the training data, and the testing data (X_test and y_test) for validation during training.
+To classify a new image, it opens the image, resizes it, converts it to a NumPy array, normalizes the pixel values, and adds an extra dimension to the array.
+It uses the predict method to get the model's prediction for the new image.
+It converts the numerical category back to its original label (category name) using label_encoder.inverse_transform and prints the predicted category.

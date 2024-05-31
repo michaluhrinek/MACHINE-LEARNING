@@ -1,0 +1,172 @@
+#loading multiple jpegs from multiple folders for further classification 
+# Import the necessary libraries
+from os import walk
+from glob import glob
+
+# Define the path to the folder with the images
+path = 'C:/Users/user/Desktop/Downloads/AP937146'
+
+# Get all the files in the folder
+files = glob(path + '/*')
+
+# Initialize an empty list to store the file paths
+file_paths = []
+
+# Iterate over all the files in the folder
+for root, dirs, files in walk(path):
+   for file in files:
+       file_paths.append(file)
+
+# Print the file paths
+print(file_paths)   
+
+
+This code assumes that you have already organized your images into different folders, where each folder represents a specific category (e.g., "Domestic Payment", "Transaction Input", "SEPA", etc.).
+import os
+import numpy as np
+from PIL import Image
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+# Define the path to the folder with the images
+path = 'path/to/your/image/folder'
+
+# Define the image dimensions
+img_width, img_height = 224, 224
+
+# Create an empty list to store the image data and labels
+X = []
+y = []
+
+# Loop through the folders and load the images
+for category in os.listdir(path):
+    category_path = os.path.join(path, category)
+    if os.path.isdir(category_path):
+        for img_file in os.listdir(category_path):
+            img_path = os.path.join(category_path, img_file)
+            img = Image.open(img_path)
+            img = img.resize((img_width, img_height))
+            img_data = np.array(img) / 255.0  # Normalize pixel values
+            X.append(img_data)
+            y.append(category)
+
+# Convert the data to NumPy arrays
+X = np.array(X)
+y = np.array(y)
+
+# Encode the labels
+label_encoder = LabelEncoder()
+y = label_encoder.fit_transform(y)
+
+# Split the data into train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Data augmentation for training set
+train_datagen = ImageDataGenerator(
+    rotation_range=20,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    shear_range=0.2,
+    zoom_range=0.2,
+    horizontal_flip=True
+)
+
+# Preprocess the training data
+train_generator = train_datagen.flow(X_train, y_train, batch_size=32)
+
+# Define the CNN model architecture
+model = Sequential([
+    Conv2D(32, (3, 3), activation='relu', input_shape=(img_width, img_height, 3)),
+    MaxPooling2D((2, 2)),
+    Conv2D(64, (3, 3), activation='relu'),
+    MaxPooling2D((2, 2)),
+    Conv2D(128, (3, 3), activation='relu'),
+    MaxPooling2D((2, 2)),
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dense(len(np.unique(y)), activation='softmax')
+])
+
+# Compile the model
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+# Train the model
+epochs = 10
+model.fit(train_generator, epochs=epochs, validation_data=(X_test, y_test))
+
+# Classify a new image
+new_img_path = 'path/to/your/new/image.jpg'
+new_img = Image.open(new_img_path)
+new_img = new_img.resize((img_width, img_height))
+new_img_data = np.array(new_img) / 255.0
+new_img_data = np.expand_dims(new_img_data, axis=0)
+
+# Make a prediction
+prediction = model.predict(new_img_data)
+predicted_class = label_encoder.inverse_transform([np.argmax(prediction)])[0]
+print(f"The predicted category for the new image is: {predicted_class}")
+
+
+
+#Using text for analysis in the images :
+import pytesseract
+import cv2
+import numpy as np
+
+# Function to extract text from image using PyTesseract
+def extract_text_from_image(image):
+    return pytesseract.image_to_string(image)
+
+# Function to classify text using machine learning model
+def classify_text(text, model):
+    # Implement your machine learning model here
+    # e.g., naive_bayes_classifier.classify(text)
+    return model.classify(text)
+
+# Example usage
+image = cv2.imread('image.jpg')  # Replace with path to your image
+
+# Extract text from image
+text = extract_text_from_image(image)
+
+# Classify text using machine learning model
+classification = classify_text(text, my_ml_model)
+
+print(f"Classification: {classification}")
+
+
+#Using Naibe Bayes for classification of the text : 
+from collections import defaultdict
+
+class NaiveBayesClassifier:
+    def __init__(self):
+        self.prior = defaultdict(float)
+        self.conditional = defaultdict(float)
+        self.total = 0
+
+    def train(self, data, labels):
+        for label in labels:
+            self.prior[label] += 1
+            for feature in data:
+                self.conditional[(feature, label)] += 1
+
+    def classify(self, data):
+        maxScore, maxLabel = None, None
+        for label in self.prior:
+            score = self.prior[label]
+            for feature in data:
+                score *= self.conditional[(feature, label)]
+            if maxScore is None or score > maxScore:
+                maxScore, maxLabel = score, label
+        return maxLabel
+
+# Usage
+classifier = NaiveBayesClassifier()
+classifier.train(['apple', 'fruit'], ['Fruit'])
+classifier.train(['bank', 'money'], ['Money'])
+print(classifier.classify(['fruit', 'money']))  # Prints 'Fruit'
+
+

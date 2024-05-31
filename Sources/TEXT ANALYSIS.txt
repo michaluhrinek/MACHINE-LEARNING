@@ -1,0 +1,93 @@
+code that uses Optical Character Recognition (OCR) to extract text from images, trains a machine learning model on 
+the extracted text, and then classifies a new image based on its text content:
+
+
+import os
+import zipfile
+import numpy as np
+from PIL import Image
+import pytesseract
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+
+# Define the path to the ZIP file
+zip_file_path = os.path.join('C:', os.sep, 'Program Files', 'Downloads', 'your_zip_file.zip')
+
+# Create an empty list to store the text data and labels
+texts = []
+labels = []
+
+# Open the ZIP file
+with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+    # Loop through the files in the ZIP file
+    for file_name in zip_ref.namelist():
+        # Extract the file to a temporary location
+        temp_file_path = zip_ref.extract(file_name, path='temp')
+        
+        # Check if the extracted file is a directory
+        if os.path.isdir(temp_file_path):
+            # If it's a directory, loop through the files inside
+            for img_file in os.listdir(temp_file_path):
+                img_path = os.path.join(temp_file_path, img_file)
+                img = Image.open(img_path)
+                text = pytesseract.image_to_string(img)
+                texts.append(text)
+                labels.append(os.path.basename(temp_file_path))  # Use the directory name as the label
+        else:
+            # If it's a file, process it as an image
+            img = Image.open(temp_file_path)
+            text = pytesseract.image_to_string(img)
+            texts.append(text)
+            labels.append(os.path.splitext(file_name)[0])  # Use the file name (without extension) as the label
+        
+        # Remove the temporary file or directory
+        if os.path.isdir(temp_file_path):
+            os.rmdir(temp_file_path)
+        else:
+            os.remove(temp_file_path)
+
+# Encode the labels
+label_encoder = LabelEncoder()
+labels = label_encoder.fit_transform(labels)
+
+# Split the data into train and test sets
+texts_train, texts_test, labels_train, labels_test = train_test_split(texts, labels, test_size=0.2, random_state=42)
+
+# Convert text data to numerical features
+vectorizer = TfidfVectorizer()
+X_train = vectorizer.fit_transform(texts_train)
+X_test = vectorizer.transform(texts_test)
+
+# Train the machine learning model
+model = MultinomialNB()
+model.fit(X_train, labels_train)
+
+# Classify a new image
+new_img_path = 'path/to/your/new/image.jpg'
+new_img = Image.open(new_img_path)
+new_text = pytesseract.image_to_string(new_img)
+new_text_features = vectorizer.transform([new_text])
+
+# Make a prediction
+predicted_label = model.predict(new_text_features)[0]
+predicted_class = label_encoder.inverse_transform([predicted_label])[0]
+print(f"The predicted category for the new image is: {predicted_class}")
+
+
+
+#EXPLANATION 
+It defines the path to the ZIP file containing the images.
+It creates empty lists to store the text data and labels.
+It opens the ZIP file and loops through the files inside.
+For each file, it extracts it to a temporary location and checks if it's a directory or a single file.
+If it's a directory, it loops through all the image files inside that directory, opens each image, extracts the text using pytesseract.image_to_string, and appends the text to the texts list and the directory name (label) to the labels list.
+If it's a single file, it processes it in a similar way: opens the image, extracts the text, and appends the text to the texts list and the file name (without extension) as the label to the labels list.
+After processing each file, it removes the temporary file or directory.
+It encodes the labels (labels) using LabelEncoder from scikit-learn, which assigns a unique numerical value to each label.
+It splits the data into training and testing sets using train_test_split from scikit-learn.
+It converts the text data to numerical features using TfidfVectorizer from scikit-learn, which creates a term-frequency-inverse-document-frequency matrix.
+It trains a machine learning model (MultinomialNB) on the training data.
+To classify a new image, it opens the image, extracts the text using pytesseract.image_to_string, converts the text to numerical features using the same vectorizer, and passes it to the trained model for prediction.
+It converts the numerical label back to its original label (category name) using label_encoder.inverse_transform and prints the predicted category.
