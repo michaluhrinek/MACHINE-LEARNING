@@ -1,4 +1,0 @@
-https://www.youtube.com/watch?v=solASfMs89Q
-
-github:
-https://github.com/IBM/image-classification-using-cnn-and-keras/blob/master/notebooks/Image%20Classification%20of%20Documents.ipynb
